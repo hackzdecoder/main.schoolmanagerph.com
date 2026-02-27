@@ -7,13 +7,8 @@ define('LARAVEL_START', microtime(true));
 
 // BLOCK DIRECT ACCESS TO /public
 if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/public/') !== false) {
-    // http_response_code(500);
-    // exit('Direct access to /public is forbidden');
-
     require __DIR__ . '/../vendor/autoload.php';
-
     $app = require_once __DIR__ . '/../bootstrap/app.php';
-
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
     $response = $kernel->handle(
         $request = Illuminate\Http\Request::capture()
@@ -21,7 +16,8 @@ if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/public/'
     $response->send();
     $kernel->terminate($request, $response);
 
-    exit;
+    // CRITICAL: Stop execution here
+    die;
 }
 
 // Determine if the application is in maintenance mode...
