@@ -1,11 +1,11 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # First: Block direct access to /public completely (returns 403 Forbidden)
-    RewriteCond %{REQUEST_URI} ^/public/? [NC]
+    # Block ALL URLs that contain /public/ anywhere
+    RewriteCond %{THE_REQUEST} /public/ [NC]
     RewriteRule ^ - [F,L]
 
-    # Second: Redirect everything else to the public folder (for Laravel)
+    # Redirect everything else to public folder
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L,QSA]
 </IfModule>
