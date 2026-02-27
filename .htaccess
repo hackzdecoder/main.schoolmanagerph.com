@@ -1,4 +1,5 @@
 <IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteRule ^(.*)$ public/$1 [L]
+    # Redirect /public to root (301 permanent)
+    RewriteCond %{REQUEST_URI} ^/public/?
+    RewriteRule ^(.*)$ / [R=301,L]
 </IfModule>
