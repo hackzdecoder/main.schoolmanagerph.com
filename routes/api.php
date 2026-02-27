@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/test-api', function (Request $request) {
     return response()->json([
-        'message' => 'Testing is complete',
+        'message' => 'Testing is complete, Do backend now!',
     ]);
 });
 
