@@ -8,7 +8,6 @@ define('LARAVEL_START', microtime(true));
 // BLOCK DIRECT ACCESS TO /public
 if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/public/') !== false) {
     http_response_code(500);
-    exit('Direct access to /public is forbidden');
 }
 
 // Determine if the application is in maintenance mode...
