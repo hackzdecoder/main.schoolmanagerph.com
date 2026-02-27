@@ -5,16 +5,10 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// BLOCK DIRECT ACCESS TO /public - SHOWS LARAVEL 500 PAGE
+// BLOCK DIRECT ACCESS TO /public
 if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/public/') !== false) {
-    require __DIR__ . '/../vendor/autoload.php';
-    $app = require_once __DIR__ . '/../bootstrap/app.php';
-    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-    $response = $kernel->handle($request = Request::capture());
-    $response->setStatusCode(500);
-    $response->send();
-    $kernel->terminate($request, $response);
-    exit;
+    http_response_code(500);
+    exit('Access denied');
 }
 
 // Determine if the application is in maintenance mode...
