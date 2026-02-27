@@ -1,9 +1,9 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # First: Redirect /public URLs to root
+    # First: Block direct access to /public completely (returns 403 Forbidden)
     RewriteCond %{REQUEST_URI} ^/public/? [NC]
-    RewriteRule ^(.*)$ / [R=301,L]
+    RewriteRule ^ - [F,L]
 
     # Second: Redirect everything else to the public folder (for Laravel)
     RewriteCond %{REQUEST_URI} !^/public/
