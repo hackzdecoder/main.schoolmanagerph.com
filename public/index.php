@@ -5,7 +5,8 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// BLOCK DIRECT ACCESS TO /public
+// Secure the public directory by denying access to any files that are not explicitly allowed. 
+// This prevents direct access to sensitive files and directories.
 if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/public/') !== false) {
     http_response_code(500);
     exit('Access denied');
