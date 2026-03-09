@@ -62,10 +62,9 @@ class DatabaseManagerServiceProvider extends ServiceProvider
 
             $userAccessData = $user->toArray();
 
-            $databaseName = Utilities::setSchoolDatabase(
-                $userAccessData,
-                config('app.env')
-            );
+            $databaseName = Utilities::setSchoolDatabase($userAccessData, config('app.env'));
+            $username = Utilities::setSchoolUser($userAccessData, config('app.env'));
+            $password = Utilities::getSchoolPassword(config('app.env'));
 
             if (!$databaseName) {
                 return new JsonResponse([
@@ -83,14 +82,14 @@ class DatabaseManagerServiceProvider extends ServiceProvider
 
             $schemaExists = isset($result[0]->SCHEMA_NAME);
 
-            // Make connection config
+            // Make connection configuration
             $connectionConfig = [
                 'driver' => 'mysql',
                 'host' => config('database.connections.main_connection.host'),
                 'port' => config('database.connections.main_connection.port'),
                 'database' => $databaseName,
-                'username' => config('database.connections.main_connection.username'),
-                'password' => config('database.connections.main_connection.password'),
+                'username' => $username,
+                'password' => $password,
                 'charset' => 'utf8mb4',
                 'collation' => 'utf8mb4_unicode_ci',
             ];

@@ -20,8 +20,36 @@ class Utilities
         }
 
         // Return database name based on environment
-        return $env === 'dev'
-            ? 'sm_' . $schoolCode . '_dev'
-            : 'u141085058_' . $schoolCode;
+        return $env === 'dev' ? 'sm_' . $schoolCode . '_dev' : 'u141085058_' . $schoolCode;
+    }
+
+    /**
+     * Generate database USERNAME from school code and environment
+     */
+    public static function setSchoolUser(array $school, $env)
+    {
+        if (!isset($school['school_code']) || !is_string($school['school_code'])) {
+            throw new \InvalidArgumentException('Valid school code is required');
+        }
+
+        $schoolCode = strtolower(trim($school['school_code']));
+
+        if (empty($schoolCode) || !preg_match('/^[a-zA-Z0-9_]+$/', $schoolCode)) {
+            throw new \InvalidArgumentException('School code contains invalid characters');
+        }
+
+        if ($env === 'dev') {
+            return 'root';
+        }
+
+        return 'u141085058_sm_' . $schoolCode;
+    }
+
+    /**
+     * Get password (assuming same password for all school databases)
+     */
+    public static function getSchoolPassword($env)
+    {
+        return $env === 'dev' ? '' : 'M@trix103!';
     }
 }
