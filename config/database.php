@@ -98,5 +98,4 @@ return [
             'database' => env('REDIS_DB', 0),
         ],
     ],
-
 ];
