@@ -15,7 +15,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Students Routes
     Route::prefix('student')->group(function () {
         // Student Module
-        Route::get('/profile', [StudentController::class, 'students']);
+        Route::get('/', [StudentController::class, 'students']);
+        Route::get('/profile', [StudentController::class, 'student_profile']);
 
         // Attendance Modules
         Route::get('/attendance', [StudentController::class, 'student_attendance']);

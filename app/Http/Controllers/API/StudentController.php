@@ -14,45 +14,53 @@ class StudentController extends Controller
      */
     public function students(): JsonResponse
     {
-        $students = Student::with('users')
-            ->studentUserId()
-            ->userEmailSorting('desc')
-            ->get();
+        try {
+            $students = Student::with('users')
+                ->studentUserId()
+                ->userEmailSorting('desc')
+                ->get();
 
-        if ($students->isEmpty()) {
+            if ($students->isEmpty()) {
+                return new JsonResponse([
+                    'success' => true,
+                    'response' => 'No records found',
+                ], 200);
+            }
+
             return new JsonResponse([
                 'success' => true,
-                'response' => 'No records found',
+                'response' => 'Found ' . $students->count() . ' records',
+                'data' => [
+                    'students' => $students->map(fn($row) => [
+                        'student_info' => [
+                            'student_id' => $row?->student_id ?? 'Student ID not available',
+                            'fullname' => $row?->fullname,
+                            'nickname' => $row?->nickname ?? 'Nickname not available',
+                            'foreign_name' => $row?->foreign_name ?? 'Foreign name not available',
+                            'gender' => $row?->gender,
+                            'course' => $row?->course,
+                            'level' => $row?->level,
+                            'school_level' => $row?->school_level,
+                            'section' => $row?->section,
+                            'school_name' => $row?->school_name,
+                            'mobile_number' => $row?->mobile_number,
+                            'lrn' => $row?->lrn ?? 'LRN not available',
+                            'profile_img' => $row?->foreign_name ?? 'Profile image not available'
+                        ],
+                        'user_account' => [
+                            'username' => $row?->users?->username,
+                            'email' => $row?->users?->email
+                        ],
+                    ])
+                ]
             ], 200);
-        }
 
-        return new JsonResponse([
-            'success' => true,
-            'response' => 'Found ' . $students->count() . ' records',
-            'data' => [
-                'students' => $students->map(fn($row) => [
-                    'student_info' => [
-                        'student_id' => $row?->student_id ?? 'Student ID not available',
-                        'fullname' => $row?->fullname,
-                        'nickname' => $row?->nickname ?? 'Nickname not available',
-                        'foreign_name' => $row?->foreign_name ?? 'Foreign name not available',
-                        'gender' => $row?->gender,
-                        'course' => $row?->course,
-                        'level' => $row?->level,
-                        'school_level' => $row?->school_level,
-                        'section' => $row?->section,
-                        'school_name' => $row?->school_name,
-                        'mobile_number' => $row?->mobile_number,
-                        'lrn' => $row?->lrn ?? 'LRN not available',
-                        'profile_img' => $row?->foreign_name ?? 'Profile image not available'
-                    ],
-                    'user_account' => [
-                        'username' => $row?->users?->username,
-                        'email' => $row?->users?->email
-                    ],
-                ])
-            ]
-        ], 200);
+        } catch (\Throwable $th) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Failed to fetch your student: ' . $th->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -254,6 +262,61 @@ class StudentController extends Controller
             return new JsonResponse([
                 'success' => false,
                 'error' => 'Failed to fetch student fullnames: ' . $th->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get overall Student
+     * Route: POST /students
+     */
+    public function student_profile(): JsonResponse
+    {
+        try {
+            $students = Student::with('users')
+                ->studentUserId()
+                ->userEmailSorting('desc')
+                ->get();
+
+            if ($students->isEmpty()) {
+                return new JsonResponse([
+                    'success' => true,
+                    'response' => 'No records found',
+                ], 200);
+            }
+
+            return new JsonResponse([
+                'success' => true,
+                'response' => 'Found ' . $students->count() . ' records',
+                'data' => [
+                    'students' => $students->map(fn($row) => [
+                        'student_info' => [
+                            'student_id' => $row?->student_id ?? 'Student ID not available',
+                            'fullname' => $row?->fullname,
+                            'nickname' => $row?->nickname ?? 'Nickname not available',
+                            'foreign_name' => $row?->foreign_name ?? 'Foreign name not available',
+                            'gender' => $row?->gender,
+                            'course' => $row?->course,
+                            'level' => $row?->level,
+                            'school_level' => $row?->school_level,
+                            'section' => $row?->section,
+                            'school_name' => $row?->school_name,
+                            'mobile_number' => $row?->mobile_number,
+                            'lrn' => $row?->lrn ?? 'LRN not available',
+                            'profile_img' => $row?->foreign_name ?? 'Profile image not available'
+                        ],
+                        'user_account' => [
+                            'username' => $row?->users?->username,
+                            'email' => $row?->users?->email
+                        ],
+                    ])
+                ]
+            ], 200);
+
+        } catch (\Throwable $th) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Failed to fetch your student: ' . $th->getMessage()
             ], 500);
         }
     }
