@@ -19,73 +19,83 @@ class AuthenticationController extends Controller
      */
     public function authenticate_user(Request $request): JsonResponse
     {
-        $request->validate([
-            'username' => 'required|string',
-            'password' => 'required|string'
-        ]);
 
-        $key = 'login:' . $request->ip();
+        try {
 
-        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $request->validate([
+                'username' => 'required|string',
+                'password' => 'required|string'
+            ]);
+
+            $key = 'login:' . $request->ip();
+
+            if (RateLimiter::tooManyAttempts($key, 5)) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Too many login attempts. Please try again later.'
+                ], 429);
+            }
+
+            $user = User::findUser($request->username)->first();
+
+            if (!$user || !Hash::check($request->password, $user->password)) {
+                RateLimiter::hit($key, 60);
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Invalid username or password'
+                ], 401);
+            }
+
+            if ($user->account_status !== 'active') {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Account is not active'
+                ], 403);
+            }
+
+            RateLimiter::clear($key);
+
+            // Delete ALL existing tokens for this user (forces single session)
+            $user->tokens()->delete();
+
+            // Create NEW tokens (8h access + 14d refresh)
+            $accessToken = Tokens::createAccessToken($user);
+            $refreshToken = Tokens::createRefreshToken($user);
+
+            $accessExpiresAt = now()->addHours(8);
+
+            // Return response with new cookie (overwrites old one)
+            return (new JsonResponse([
+                'success' => true,
+                'response' => 'Login successful',
+                'user' => [
+                    'access_token' => $accessToken,
+                    'username' => $user->username,
+                    'email' => $user->email,
+                    'fullname' => $user->fullname,
+                    'school_code' => $user->school_code
+                ],
+                'access_expires_at' => $accessExpiresAt->toDateTimeString(),
+            ], 200))->withCookie(
+                    cookie(
+                        'refresh_token',
+                        $refreshToken, // New refresh token
+                        20160, // 14 days
+                        '/',
+                        null,
+                        app()->environment('production'),
+                        true, // httpOnly
+                        false,
+                        'strict'
+                    )
+                );
+
+        } catch (\Throwable $th) {
             return new JsonResponse([
                 'success' => false,
-                'error' => 'Too many login attempts. Please try again later.'
-            ], 429);
+                'error' => 'Failed to fetch student fullnames: ' . $th->getMessage()
+            ], 500);
         }
-
-        $user = User::findUser($request->username)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            RateLimiter::hit($key, 60);
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Invalid username or password'
-            ], 401);
-        }
-
-        if ($user->account_status !== 'active') {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Account is not active'
-            ], 403);
-        }
-
-        RateLimiter::clear($key);
-
-        // Delete ALL existing tokens for this user (forces single session)
-        $user->tokens()->delete();
-
-        // Create NEW tokens (8h access + 14d refresh)
-        $accessToken = Tokens::createAccessToken($user);
-        $refreshToken = Tokens::createRefreshToken($user);
-
-        $accessExpiresAt = now()->addHours(8);
-
-        // Return response with new cookie (overwrites old one)
-        return (new JsonResponse([
-            'success' => true,
-            'response' => 'Login successful',
-            'user' => [
-                'access_token' => $accessToken,
-                'username' => $user->username,
-                'email' => $user->email,
-                'fullname' => $user->fullname,
-                'school_code' => $user->school_code
-            ],
-            'access_expires_at' => $accessExpiresAt->toDateTimeString(),
-        ], 200))->withCookie(
-                cookie(
-                    'refresh_token',
-                    $refreshToken, // New refresh token
-                    20160, // 14 days
-                    '/',
-                    null,
-                    app()->environment('production'),
-                    true, // httpOnly
-                    false,
-                    'strict'
-                )
-            );
     }
 
     /**
