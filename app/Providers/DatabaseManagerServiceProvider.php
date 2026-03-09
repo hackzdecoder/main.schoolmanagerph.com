@@ -86,11 +86,11 @@ class DatabaseManagerServiceProvider extends ServiceProvider
             // Make connection config
             $connectionConfig = [
                 'driver' => 'mysql',
-                'host' => config('database.connections.mysql.host'),
-                'port' => config('database.connections.mysql.port'),
+                'host' => config('database.connections.main_connection.host'),
+                'port' => config('database.connections.main_connection.port'),
                 'database' => $databaseName,
-                'username' => config('database.connections.mysql.username'),
-                'password' => config('database.connections.mysql.password'),
+                'username' => config('database.connections.main_connection.username'),
+                'password' => config('database.connections.main_connection.password'),
                 'charset' => 'utf8mb4',
                 'collation' => 'utf8mb4_unicode_ci',
             ];

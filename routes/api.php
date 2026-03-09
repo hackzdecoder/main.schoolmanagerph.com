@@ -10,13 +10,13 @@ Route::post('/login', [AuthenticationController::class, 'authenticate_user']);
 
 Route::post('/mailer', [AuthenticationController::class, 'test_mailer']);
 
-Route::get('/test-db-config', function () {
-    return [
-        'database' => env('APP_ENV') === 'dev' ? env('DB_DATABASE_DEV') : env('DB_DATABASE_PROD'),
-        'username' => env('APP_ENV') === 'dev' ? env('DB_USERNAME_DEV') : env('DB_USERNAME_PROD'),
-        'password' => env('APP_ENV') === 'dev' ? env('DB_PASSWORD_DEV') : env('DB_PASSWORD_PROD'),
-    ];
-});
+// Route::get('/test-db-config', function () {
+//     return [
+//         'database' => env('APP_ENV') === 'dev' ? env('DB_DATABASE_DEV') : env('DB_DATABASE_PROD'),
+//         'username' => env('APP_ENV') === 'dev' ? env('DB_USERNAME_DEV') : env('DB_USERNAME_PROD'),
+//         'password' => env('APP_ENV') === 'dev' ? env('DB_PASSWORD_DEV') : env('DB_PASSWORD_PROD'),
+//     ];
+// });
 
 Route::middleware(['auth:sanctum'])->group(function () {
 

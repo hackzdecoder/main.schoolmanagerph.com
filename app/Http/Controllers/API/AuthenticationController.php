@@ -52,15 +52,16 @@ class AuthenticationController extends Controller
 
         RateLimiter::clear($key);
 
-        // Remove expired tokens
-        $user->tokens()->where('expires_at', '<', now())->delete();
+        // Delete ALL existing tokens for this user (forces single session)
+        $user->tokens()->delete();
 
-        // Create tokens (8h access + 14d refresh)
+        // Create NEW tokens (8h access + 14d refresh)
         $accessToken = Tokens::createAccessToken($user);
         $refreshToken = Tokens::createRefreshToken($user);
 
         $accessExpiresAt = now()->addHours(8);
 
+        // Return response with new cookie (overwrites old one)
         return (new JsonResponse([
             'success' => true,
             'response' => 'Login successful',
@@ -75,12 +76,12 @@ class AuthenticationController extends Controller
         ], 200))->withCookie(
                 cookie(
                     'refresh_token',
-                    $refreshToken,
-                    20160,
+                    $refreshToken, // New refresh token
+                    20160, // 14 days
                     '/',
                     null,
                     app()->environment('production'),
-                    true,
+                    true, // httpOnly
                     false,
                     'strict'
                 )
