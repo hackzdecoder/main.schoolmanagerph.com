@@ -9,7 +9,6 @@ class Utilities
      */
     public static function setSchoolDatabase(array $school, $env)
     {
-        // Validate school code
         if (!isset($school['school_code']) || !is_string($school['school_code'])) {
             throw new \InvalidArgumentException('Valid school code is required');
         }

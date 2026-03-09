@@ -8,9 +8,14 @@ use Illuminate\Http\JsonResponse;
 
 class StudentController extends Controller
 {
+    /**
+     * Get overall Student
+     * Route: POST /students
+     */
     public function students(): JsonResponse
     {
         $students = Student::with('users')
+            ->studentUserId()
             ->userEmailSorting('desc')
             ->get();
 
@@ -23,7 +28,7 @@ class StudentController extends Controller
 
         return new JsonResponse([
             'success' => true,
-            'response' => 'Records available',
+            'response' => 'Found ' . $students->count() . ' records',
             'data' => [
                 'students' => $students->map(fn($row) => [
                     'student_info' => [
@@ -51,43 +56,205 @@ class StudentController extends Controller
     }
 
     /**
-     * Get student profile with user data using Eloquent relationship
+     * Get attendance for a specific student by user_id
+     * Route: POST /students/attendance
      */
-    // public function studentProfile(Request $request): JsonResponse
-    // {
+    public function student_attendance(): JsonResponse
+    {
+        try {
+            // Get the current student with their attendance records
+            $student = Student::with([
+                'attendanceList' => function ($query) {
+                    $query->prioritySortUnread('desc')->sortByDate('desc');
+                }
+            ])->studentUserId()->first();
 
-    //     try {
-    //         // Get authenticated user
-    //         $authUser = $request->user();
+            if (!$student) {
+                return new JsonResponse([
+                    'success' => false,
+                    'response' => 'No records found',
+                ], 404);
+            }
 
-    //         // Check if user has school_code
-    //         if (!$authUser->school_code) {
-    //             return new JsonResponse([
-    //                 'success' => false,
-    //                 'error' => 'User has no school code assigned'
-    //             ], 400);
-    //         }
+            $attendance = $student->attendanceList;
 
-    //         // Use authenticated user's ID
-    //         $student = Student::findByUserId($authUser->user_id)->first();
+            if ($attendance->isEmpty()) {
+                return new JsonResponse([
+                    'success' => false,
+                    'response' => 'No attendance not found',
+                ], 404);
+            }
 
-    //         if (!$student) {
-    //             return new JsonResponse([
-    //                 'success' => false,
-    //                 'error' => 'User not found'
-    //             ], 404);
-    //         }
+            return new JsonResponse([
+                'success' => true,
+                'response' => 'Found ' . $attendance->count() . ' records',
+                'data' => [
+                    'attendance' => $attendance->map(fn($row) => [
+                        'full_name' => $row?->full_name ?? $student->fullname,
+                        'time_in' => $row?->time_in,
+                        'kiosk_terminal_in' => $row?->kiosk_terminal_in,
+                        'time_out' => $row?->time_out,
+                        'kiosk_terminal_out' => $row?->kiosk_terminal_out,
+                        'date' => $row?->date,
+                        'status' => $row?->status
+                    ]),
+                ]
+            ], 200);
 
-    //         return new JsonResponse([
-    //             'success' => true,
-    //             'data' => $student->user_id
-    //         ], 200);
+        } catch (\Throwable $th) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Failed to fetch your attendance: ' . $th->getMessage()
+            ], 500);
+        }
+    }
 
-    //     } catch (\Throwable $th) {
-    //         return new JsonResponse([
-    //             'success' => false,
-    //             'error' => 'Failed to get student profile: ' . $th->getMessage()
-    //         ], 500);
-    //     }
-    // }
+    /**
+     * Get student fullname list
+     * Route: GET /students/attendance/fullname
+     */
+    public function student_attendance_fullname(): JsonResponse
+    {
+        try {
+            // Get the current student with their attendance full_name records
+            $student = Student::with([
+                'attendanceList' => function ($query) {
+                    $query->select('user_id', 'full_name')->distinct();
+                }
+            ])
+                ->studentUserId()
+                ->first();
+
+            if (!$student) {
+                return new JsonResponse([
+                    'success' => false,
+                    'response' => 'No records found',
+                ], 404);
+            }
+
+            // Get unique fullnames from attendance records
+            $uniqueFullnames = $student->attendanceList
+                ->unique('full_name')
+                ->values()
+                ->map(fn($row) => [
+                    'fullname' => $row->full_name
+                ]);
+
+            return new JsonResponse([
+                'success' => true,
+                'response' => 'Found ' . $uniqueFullnames->count() . ' records',
+                'data' => [
+                    'students' => $uniqueFullnames
+                ]
+            ], 200);
+
+        } catch (\Throwable $th) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Failed to fetch student fullnames: ' . $th->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get messages for a specific student by user_id
+     * Route: GET /students/messages
+     */
+    public function student_messages(): JsonResponse
+    {
+        try {
+            // Get the current student with their messages
+            $student = Student::with([
+                'messagesList' => function ($query) {
+                    $query->sortByDate('desc');
+                }
+            ])->studentUserId()->first();
+
+            if (!$student) {
+                return new JsonResponse([
+                    'success' => false,
+                    'response' => 'No records found',
+                ], 404);
+            }
+
+            $messages = $student->messagesList;
+
+            if ($messages->isEmpty()) {
+                return new JsonResponse([
+                    'success' => false,
+                    'response' => 'No messages found',
+                ], 404);
+            }
+
+            return new JsonResponse([
+                'success' => true,
+                'response' => 'Found ' . $messages->count() . ' messages',
+                'data' => [
+                    'messages' => $messages->map(fn($row) => [
+                        'id' => $row->id,
+                        'full_name' => $row->full_name,
+                        'subject' => $row->subject,
+                        'message' => $row->message,
+                        'status' => $row->status,
+                        'date' => $row->date ? $row->date->format('Y-m-d') : null,
+                        'created_at' => $row->created_at->toDateTimeString(),
+                        'updated_at' => $row->updated_at->toDateTimeString(),
+                    ]),
+                ]
+            ], 200);
+
+        } catch (\Throwable $th) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Failed to fetch messages: ' . $th->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get messages fullname list
+     * Route: GET /students/messages/fullname
+     */
+    public function student_messages_fullname(): JsonResponse
+    {
+        try {
+            // Get the current student with their attendance full_name records
+            $student = Student::with([
+                'messagesList' => function ($query) {
+                    $query->select('user_id', 'full_name')->distinct();
+                }
+            ])
+                ->studentUserId()
+                ->first();
+
+            if (!$student) {
+                return new JsonResponse([
+                    'success' => false,
+                    'response' => 'No records found',
+                ], 404);
+            }
+
+            // Get unique fullnames from attendance records
+            $uniqueFullnames = $student->attendanceList
+                ->unique('full_name')
+                ->values()
+                ->map(fn($row) => [
+                    'fullname' => $row->full_name
+                ]);
+
+            return new JsonResponse([
+                'success' => true,
+                'response' => 'Found ' . $uniqueFullnames->count() . ' records',
+                'data' => [
+                    'students' => $uniqueFullnames
+                ]
+            ], 200);
+
+        } catch (\Throwable $th) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Failed to fetch student fullnames: ' . $th->getMessage()
+            ], 500);
+        }
+    }
 }

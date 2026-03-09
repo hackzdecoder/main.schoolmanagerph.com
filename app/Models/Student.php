@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Providers\DatabaseManagerProvider;
+use App\Providers\DatabaseManagerServiceProvider;
 use Illuminate\Database\Eloquent\Model;
 
 class Student extends Model
@@ -67,6 +67,11 @@ class Student extends Model
     protected static $connectionPool = [];
 
     /**
+     * Access current user_id from authenticated student user
+     */
+    protected $userId = null;
+
+    /**
      * Construct database connection instance
      *
      * @param array $attributes
@@ -74,27 +79,27 @@ class Student extends Model
      */
     public function __construct(array $attributes = [])
     {
+        parent::__construct($attributes);
 
-        $dbName = $this->queryBuilder();
+        if (auth()->check()) {
+            $dbName = $this->queryBuilder();
 
-        if ($dbName && $dbName !== 'mysql') {
+            if ($dbName && $dbName !== 'mysql') {
+                if (!isset(self::$connectionPool[$dbName])) {
+                    $provider = DatabaseManagerServiceProvider::source();
+                    $data = json_decode($provider->getContent(), true);
 
-            if (!isset(self::$connectionPool[$dbName])) {
-                $provider = DatabaseManagerProvider::source();
-                $data = json_decode($provider->getContent(), true);
+                    if (isset($data['data']['connection_config'])) {
+                        config([
+                            "database.connections.{$dbName}" => $data['data']['connection_config']
+                        ]);
+                    }
 
-                if (isset($data['data']['connection_config'])) {
-                    config([
-                        "database.connections.{$dbName}" => $data['data']['connection_config']
-                    ]);
+                    self::$connectionPool[$dbName] = true;
                 }
 
-                self::$connectionPool[$dbName] = true;
+                $this->setConnection($dbName);
             }
-
-            $this->setConnection($dbName);
-        } else {
-            $this->setConnection('database_connection');
         }
     }
 
@@ -105,19 +110,73 @@ class Student extends Model
      */
     public function queryBuilder()
     {
-        $provider = DatabaseManagerProvider::source();
-
+        $provider = DatabaseManagerServiceProvider::source();
         $data = json_decode($provider->getContent(), true);
 
-        return $data['data']['database'] ?? 'database_connection';
+        // Store current user_id
+        if ($this->userId === null && isset($data['data']['user_id'])) {
+            $this->userId = $data['data']['user_id'];
+        }
+
+        return $data['data']['database'] ?? 'main_connection';
     }
 
     /**
-     * User Model -> Student Model
+     * Get the current authenticated user's ID
+     * 
+     * @return string|null
+     */
+    public function getUserId()
+    {
+        // If it haven't stored it yet, try to fetch it
+        if ($this->userId === null) {
+            $this->queryBuilder(); // propagate userId
+        }
+
+        return $this->userId;
+    }
+
+    /**
+     * Student Model -> User Model (belongsTo)
+     * Get the student associated with this users record
      */
     public function users()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Student Model -> Attendance Model (has many)
+     * Get the attendance records for the student
+     */
+    public function attendanceList()
+    {
+        return $this->hasMany(Attendance::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Student Model -> Message Model (hasMany)
+     * Get the messages associated with this student
+     */
+    public function messagesList()
+    {
+        return $this->hasMany(Message::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Scope to get current student's own record using user_id
+     * 
+     * @return string|null
+     */
+    public function scopeStudentUserId($query)
+    {
+        $userId = $this->getUserId();
+
+        if ($userId) {
+            return $query->where('user_id', $userId);
+        }
+
+        return $query;
     }
 
     /**

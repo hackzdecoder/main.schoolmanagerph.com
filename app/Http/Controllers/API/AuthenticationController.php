@@ -4,11 +4,13 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Helpers\Tokens;
+use App\Mail\TestMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\JsonResponse;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthenticationController extends Controller
 {
@@ -35,7 +37,6 @@ class AuthenticationController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             RateLimiter::hit($key, 60);
-
             return new JsonResponse([
                 'success' => false,
                 'error' => 'Invalid username or password'
@@ -54,11 +55,11 @@ class AuthenticationController extends Controller
         // Remove expired tokens
         $user->tokens()->where('expires_at', '<', now())->delete();
 
-        // Short-lived access token
-        $accessToken = $user->createToken('access_token', ['*'], now()->addMinutes(30))->plainTextToken;
+        // Create tokens (8h access + 14d refresh)
+        $accessToken = Tokens::createAccessToken($user);
+        $refreshToken = Tokens::createRefreshToken($user);
 
-        // Long-lived refresh token
-        $refreshToken = $user->createToken('refresh_token', ['*'], now()->addWeeks(2))->plainTextToken;
+        $accessExpiresAt = now()->addHours(8);
 
         return (new JsonResponse([
             'success' => true,
@@ -70,7 +71,7 @@ class AuthenticationController extends Controller
                 'fullname' => $user->fullname,
                 'school_code' => $user->school_code
             ],
-            'access_expires_at' => now()->addMinutes(30)->toDateTimeString(),
+            'access_expires_at' => $accessExpiresAt->toDateTimeString(),
         ], 200))->withCookie(
                 cookie(
                     'refresh_token',
@@ -78,43 +79,107 @@ class AuthenticationController extends Controller
                     20160,
                     '/',
                     null,
-                    app()->environment('production'), // secure in prod
-                    true
+                    app()->environment('production'),
+                    true,
+                    false,
+                    'strict'
                 )
             );
     }
 
     /**
-     * Refresh access token using the refresh token cookie
+     * Mailer
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function refresh_token(Request $request): JsonResponse
+    public function test_mailer(Request $request)
     {
-        $refreshToken = $request->cookie('refresh_token');
+        try {
+            // Validate email if provided
+            $request->validate([
+                'email' => 'required|email'
+            ]);
 
-        if (!$refreshToken) {
-            return new JsonResponse(['success' => false, 'error' => 'No refresh token found'], 401);
+            // Get recipient email
+            $toEmail = $request->input('email');
+
+            // Send the test email
+            Mail::to($toEmail)->send(new TestMail());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test email sent successfully!',
+                'data' => [
+                    'recipient' => $toEmail,
+                    'sent_at' => now()->toDateTimeString(),
+                    'mailer' => config('mail.default'),
+                    'from_address' => config('mail.from.address'),
+                    'from_name' => config('mail.from.name'),
+                    'environment' => app()->environment()
+                ]
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send email',
+                'error' => $e->getMessage(),
+                'trace' => app()->environment('local') ? $e->getTraceAsString() : null
+            ], 500);
         }
-
-        $tokenModel = PersonalAccessToken::findToken($refreshToken);
-
-        if (!$tokenModel || $tokenModel->tokenable->account_status !== 'active' || $tokenModel->expires_at < now()) {
-            return new JsonResponse(['success' => false, 'error' => 'Refresh token invalid or expired'], 401);
-        }
-
-        $user = $tokenModel->tokenable;
-
-        // Issue new short-lived access token
-        $newAccessToken = $user->createToken('access_token', ['*'], now()->addMinutes(30))->plainTextToken;
-
-        return new JsonResponse([
-            'success' => true,
-            'access_token' => $newAccessToken,
-            'access_expires_at' => now()->addMinutes(30)->toDateTimeString()
-        ], 200);
     }
 
     /**
-     * Logout user by revoking refresh token cookie and access tokens
+     * Refresh access token using refresh token from cookie
+     */
+    public function refresh(Request $request): JsonResponse
+    {
+        try {
+            // Refresh token from cookie
+            $refreshToken = $request->cookie('refresh_token');
+
+            if (!$refreshToken) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'No refresh token provided'
+                ], 401);
+            }
+
+            // New access token
+            $newAccessToken = Tokens::refreshToken($refreshToken);
+
+            if (!$newAccessToken) {
+                return (new JsonResponse([
+                    'success' => false,
+                    'error' => 'Invalid or expired refresh token. Please login again.'
+                ], 401))->withCookie(cookie()->forget('refresh_token'));
+            }
+
+            // Return new access token
+            return new JsonResponse([
+                'success' => true,
+                'access_token' => $newAccessToken,
+                'access_expires_at' => now()->addHours(8)->toDateTimeString()
+            ], 200);
+
+        } catch (\Throwable $th) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Failed to refresh token: ' . $th->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Logout user
      */
     public function logout(Request $request): JsonResponse
     {
@@ -128,15 +193,13 @@ class AuthenticationController extends Controller
                 ], 401);
             }
 
-            // Delete all user's tokens (both access and refresh)
-            $user->tokens()->delete();
+            // Delete tokens
+            Tokens::deleteAllUserTokens($user);
 
             return (new JsonResponse([
                 'success' => true,
                 'response' => 'Logged out successfully'
-            ], 200))->withCookie(
-                    cookie()->forget('refresh_token')
-                );
+            ], 200))->withCookie(cookie()->forget('refresh_token'));
 
         } catch (\Throwable $th) {
             return new JsonResponse([

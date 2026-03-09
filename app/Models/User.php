@@ -16,7 +16,7 @@ class User extends Authenticatable
      *
      * @var string
      */
-    protected $connection = 'database_connection';
+    protected $connection = 'main_connection';
 
     /**
      * The table associated with the model.
@@ -73,7 +73,8 @@ class User extends Authenticatable
         'otp_code_expired_at',
         'otp_verified_at',
         'last_successfull_login',
-        'password_update_by'
+        'password_update_by',
+        'email_verified_at'
     ];
 
     /**

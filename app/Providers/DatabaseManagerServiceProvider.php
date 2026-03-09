@@ -8,7 +8,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Http\JsonResponse;
 use App\Helpers\Utilities;
 
-class DatabaseManagerProvider extends ServiceProvider
+class DatabaseManagerServiceProvider extends ServiceProvider
 {
     /**
      * Register application services
@@ -35,7 +35,7 @@ class DatabaseManagerProvider extends ServiceProvider
     public static function connection()
     {
         try {
-            return DB::connection('database_connection');
+            return DB::connection('main_connection');
         } catch (\Throwable $th) {
             return new JsonResponse([
                 'status' => 'error',
@@ -75,7 +75,7 @@ class DatabaseManagerProvider extends ServiceProvider
             }
 
             // Verify database exists
-            $result = DB::connection('database_connection')
+            $result = DB::connection('main_connection')
                 ->select(
                     "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?",
                     [$databaseName]
@@ -98,6 +98,7 @@ class DatabaseManagerProvider extends ServiceProvider
             return new JsonResponse([
                 'status' => 'success',
                 'data' => [
+                    'user_id' => $userAccessData['user_id'],
                     'environment' => config('app.env'),
                     'database' => $databaseName,
                     'exists' => $schemaExists,

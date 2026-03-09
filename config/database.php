@@ -32,7 +32,7 @@ return [
      */
 
     'connections' => [
-        'database_connection' => [
+        'main_connection' => [
             'driver' => 'mysql',
             'host' => env('DB_HOST'),
             'port' => env('DB_PORT'),
@@ -46,7 +46,22 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-        ]
+        ],
+        'trademark_connection' => [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST'),
+            'port' => env('DB_PORT'),
+            'database' => env('APP_ENV') === 'dev' ? env('DB_TRADEMARK_DATABASE_DEV') : env('DB_TRADEMARKS_DATABASE_PROD'),
+            'username' => env('APP_ENV') === 'dev' ? env('DB_TRADEMARK_USERNAME_DEV') : env('DB_TRADEMARKS_USERNAME_PROD'),
+            'password' => env('APP_ENV') === 'dev' ? env('DB_TRADEMARK_PASSWORD_DEV') : env('DB_TRADEMARKS_PASSWORD_PROD'),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
     ],
 
     /*

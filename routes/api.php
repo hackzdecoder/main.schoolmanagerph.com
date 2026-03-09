@@ -5,19 +5,43 @@ use App\Http\Controllers\API\MessagingController;
 use App\Http\Controllers\API\StudentController;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/refresh', [AuthenticationController::class, 'refresh']);
 Route::post('/login', [AuthenticationController::class, 'authenticate_user']);
 
+Route::post('/mailer', [AuthenticationController::class, 'test_mailer']);
+
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::post('/logout', [AuthenticationController::class, 'logout']);
 
     // Students Routes
-    Route::post('/students', [StudentController::class, 'students']);
+    Route::prefix('student')->group(function () {
+        // Student Module
+        Route::get('/profile', [StudentController::class, 'students']);
+
+        // Attendance Modules
+        Route::get('/attendance', [StudentController::class, 'student_attendance']);
+        Route::get('/attendance/fullname', [StudentController::class, 'student_attendance_fullname']);
+
+        // Messaging Modules
+        Route::get('/messages', [StudentController::class, 'student_messages']);
+        Route::get('/messages/fullname', [StudentController::class, 'student_messages_fullname']);
+    });
 
     // Attendance Routes
-    Route::post('/attendance', [AttendanceController::class, 'attendance']);
-    Route::post('/attendance/filter', [AttendanceController::class, 'attendance_filter']);
+    Route::prefix('attendance')->group(function () {
+        Route::get('/', [AttendanceController::class, 'attendance']);
+        Route::post('/filter', [AttendanceController::class, 'attendance_filter']);
+        Route::post('/filter/fullname', [AttendanceController::class, 'attendance_filter_by_fullname']);
+        Route::post('/filter/date-range', [AttendanceController::class, 'attendance_filter_by_date_range']);
+    });
 
     // Messages Routes
-    Route::post('/messages', [MessagingController::class, 'messages']);
-    Route::post('/messages/filter', [MessagingController::class, 'message_filter']);
+    Route::prefix('messages')->group(function () {
+        Route::get('/', [MessagingController::class, 'messages']);
+        Route::post('/filter', [AttendanceController::class, 'messages_filter']);
+        Route::post('/filter/fullname', [MessagingController::class, 'messages_filter_by_fullname']);
+        Route::post('/filter/date-range', [MessagingController::class, 'messages_filter_by_date_range']);
+    });
+
+    Route::post('/logout', [AuthenticationController::class, 'logout']);
+
 });
