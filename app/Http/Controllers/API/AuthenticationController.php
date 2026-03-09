@@ -93,7 +93,7 @@ class AuthenticationController extends Controller
         } catch (\Throwable $th) {
             return new JsonResponse([
                 'success' => false,
-                'error' => 'Failed to fetch student fullnames: ' . $th->getMessage()
+                'error' => 'Cannot login: ' . $th->getMessage()
             ], 500);
         }
     }
